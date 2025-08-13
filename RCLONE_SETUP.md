@@ -146,8 +146,11 @@ rclone sync /home/arif/Projects/DataCollector/collection gdrive:DataCollector/co
 
 #### 2. Safe Copy (No Deletion)
 ```bash
-# Copy files without deleting from destination
+# Upload: Copy local files to Google Drive
 rclone copy /home/arif/Projects/DataCollector/collection gdrive:DataCollector/collection -v --update
+
+# Download: Copy files from Google Drive to local
+rclone copy gdrive:DataCollector/collection /home/arif/Projects/DataCollector/collection -v --update
 ```
 
 #### 3. Incremental Sync (Recommended)
@@ -164,6 +167,43 @@ rclone sync /home/arif/Projects/DataCollector/collection gdrive:DataCollector/co
   --low-level-retries 10 \
   --stats 30s \
   -v
+```
+
+### Download from Google Drive
+
+If you have files on Google Drive (uploaded from another PC) that you want to download:
+
+#### Download All Files
+```bash
+# Download all files from Google Drive to local collection
+rclone copy gdrive:DataCollector/collection /home/arif/Projects/DataCollector/collection -v --update
+
+# List what's available on Google Drive first
+rclone ls gdrive:DataCollector/collection
+
+# Check what will be downloaded (dry run)
+rclone copy gdrive:DataCollector/collection /home/arif/Projects/DataCollector/collection -v --update --dry-run
+```
+
+#### Selective Downloads
+```bash
+# Download only video files
+rclone copy gdrive:DataCollector/collection /home/arif/Projects/DataCollector/collection -v --include "*.mp4"
+
+# Download files from specific date
+rclone copy gdrive:DataCollector/collection/2025-08-13-15-30 /home/arif/Projects/DataCollector/collection/2025-08-13-15-30 -v
+
+# Download recent files only
+rclone copy gdrive:DataCollector/collection /home/arif/Projects/DataCollector/collection -v --max-age 7d
+```
+
+#### Bidirectional Sync (Two-Way)
+```bash
+# Step 1: Download new files from Google Drive
+rclone copy gdrive:DataCollector/collection /home/arif/Projects/DataCollector/collection -v --update
+
+# Step 2: Upload new local files to Google Drive  
+rclone copy /home/arif/Projects/DataCollector/collection gdrive:DataCollector/collection -v --update
 ```
 
 ### Advanced Options
