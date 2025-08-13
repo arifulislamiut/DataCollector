@@ -1,3 +1,0 @@
-# NVIDIA SDK Manager updater
-# NVIDIA SDK Manager updater
-0 12 */7 * * /bin/bash /home/arif/.nvsdkm/.updater/updater.sh
