@@ -368,6 +368,12 @@ tail -f sync_cron.log
 
 # Edit schedule
 crontab -e
+
+# Remove/disable DataCollector sync job
+crontab -l | grep -v "DataCollector\|sync_cron.sh" | crontab -
+
+# Re-enable sync (example: every 15 minutes)
+(crontab -l; echo "*/15 * * * * /home/arif/Projects/DataCollector/sync_cron.sh >/dev/null 2>&1") | crontab -
 ```
 
 #### Option B: Manual Crontab Setup
