@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QTextEdit, QFileDialog, QMessageBox, QGroupBox,
                             QSplitter, QFrame)
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtGui import QFont, QIcon, QColor, QPalette
 
 class DeviceMonitor(QThread):
     """Thread to monitor device list changes"""
@@ -155,15 +155,22 @@ class SerialMonitor(QThread):
             self.status_update.emit(f"Error setting up serial monitor: {str(e)}")
         finally:
             if self.serial_port and self.serial_port.is_open:
-                self.serial_port.close()
+                try:
+                    self.serial_port.close()
+                except:
+                    pass  # Ignore close errors
             self.status_update.emit("Serial monitoring stopped")
     
     def stop_monitoring(self):
         """Stop serial monitoring"""
         self.running = False
         if self.serial_port and self.serial_port.is_open:
-            self.serial_port.close()
-        self.wait()
+            try:
+                self.serial_port.close()
+            except:
+                pass  # Ignore close errors
+        if self.isRunning():
+            self.wait(3000)  # Wait max 3 seconds for thread to finish
 
 class ScriptRunner(QThread):
     """Thread to run Python scripts without blocking GUI"""
@@ -204,10 +211,22 @@ class ScriptRunner(QThread):
     def stop_script(self):
         """Stop the running script"""
         if self.process and self.process.poll() is None:
-            self.process.terminate()
-            self.process.wait(timeout=5)
-            if self.process.poll() is None:
-                self.process.kill()
+            try:
+                self.process.terminate()
+                # Wait for graceful termination
+                try:
+                    self.process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    # Force kill if it doesn't terminate gracefully
+                    self.process.kill()
+                    self.process.wait(timeout=2)
+            except Exception as e:
+                print(f"Error stopping script: {e}")
+                # Try force kill as last resort
+                try:
+                    self.process.kill()
+                except:
+                    pass
 
 class HostController(QMainWindow):
     def __init__(self):
@@ -257,12 +276,12 @@ class HostController(QMainWindow):
         
         # Selected device display
         self.selected_device_label = QLabel("Selected: None")
-        self.selected_device_label.setStyleSheet("font-weight: bold; color: blue;")
+        self.selected_device_label.setStyleSheet("font-weight: bold; color: #64b5f6;")
         device_layout.addWidget(self.selected_device_label)
         
         # Serial monitoring status
         self.serial_status_label = QLabel("Serial: Not monitoring")
-        self.serial_status_label.setStyleSheet("font-style: italic; color: gray;")
+        self.serial_status_label.setStyleSheet("font-style: italic; color: #999;")
         device_layout.addWidget(self.serial_status_label)
         
         device_group.setLayout(device_layout)
@@ -277,7 +296,7 @@ class HostController(QMainWindow):
         script_row.addWidget(QLabel("Python Script:"))
         
         self.script_path_label = QLabel("No script selected")
-        self.script_path_label.setStyleSheet("border: 1px solid gray; padding: 5px; background-color: #f0f0f0;")
+        self.script_path_label.setStyleSheet("border: 1px solid #555; padding: 5px; background-color: #3c3f41; color: #e6e6e6;")
         script_row.addWidget(self.script_path_label)
         
         self.browse_btn = QPushButton("Browse...")
@@ -382,11 +401,11 @@ class HostController(QMainWindow):
         """Update serial monitoring status"""
         self.serial_status_label.setText(f"Serial: {status}")
         if "Monitoring" in status:
-            self.serial_status_label.setStyleSheet("font-style: italic; color: green;")
+            self.serial_status_label.setStyleSheet("font-style: italic; color: #81c784;")
         elif "error" in status.lower() or "failed" in status.lower():
-            self.serial_status_label.setStyleSheet("font-style: italic; color: red;")
+            self.serial_status_label.setStyleSheet("font-style: italic; color: #e57373;")
         else:
-            self.serial_status_label.setStyleSheet("font-style: italic; color: gray;")
+            self.serial_status_label.setStyleSheet("font-style: italic; color: #999;")
     
     def update_device_list(self, devices):
         """Update device dropdown with new device list"""
@@ -414,16 +433,18 @@ class HostController(QMainWindow):
         """Handle device selection"""
         if device and device != "No devices found":
             self.selected_device_label.setText(f"Selected: {device}")
-            self.selected_device_label.setStyleSheet("font-weight: bold; color: green;")
+            self.selected_device_label.setStyleSheet("font-weight: bold; color: #81c784;")
             
             # Start monitoring the selected device
             self.current_device = device
             if self.serial_monitor:
                 self.serial_monitor.set_port(device)
-                self.serial_monitor.start()
+                # Only start if not already running
+                if not self.serial_monitor.isRunning():
+                    self.serial_monitor.start()
         else:
             self.selected_device_label.setText("Selected: None")
-            self.selected_device_label.setStyleSheet("font-weight: bold; color: blue;")
+            self.selected_device_label.setStyleSheet("font-weight: bold; color: #64b5f6;")
             
             # Stop monitoring
             if self.serial_monitor:
@@ -477,7 +498,8 @@ class HostController(QMainWindow):
         if self.script_runner:
             self.append_output("\n[STOPPING SCRIPT...]")
             self.script_runner.stop_script()
-            self.script_runner.wait(5000)  # Wait up to 5 seconds
+            if self.script_runner.isRunning():
+                self.script_runner.wait(3000)  # Wait max 3 seconds
             
         self.on_script_finished(-1)
     
@@ -523,7 +545,8 @@ class HostController(QMainWindow):
         # Stop script if running
         if self.script_runner:
             self.script_runner.stop_script()
-            self.script_runner.wait(5000)
+            if self.script_runner.isRunning():
+                self.script_runner.wait(3000)  # Wait max 3 seconds
         
         event.accept()
 
@@ -534,7 +557,39 @@ def main():
     
     # Set application style
     app.setStyle('Fusion')
-    
+
+    # --- Dark mode palette and stylesheet ---
+    dark_palette = QPalette()
+    dark_palette.setColor(QPalette.Window, QColor(43, 43, 43))
+    dark_palette.setColor(QPalette.WindowText, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.Base, QColor(30, 30, 30))
+    dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.ToolTipBase, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.ToolTipText, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.Text, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.ButtonText, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
+    dark_palette.setColor(QPalette.Highlight, QColor(61, 174, 233))
+    dark_palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+    app.setPalette(dark_palette)
+
+    # App-level stylesheet for fine-grained control
+    app.setStyleSheet("""
+    QWidget { background-color: #2b2b2b; color: #e6e6e6; }
+    QGroupBox { border: 1px solid #444; margin-top: 6px; }
+    QGroupBox::title { subcontrol-origin: margin; left: 7px; padding: 0 3px 0 3px; color: #e6e6e6; }
+    QPushButton { background-color: #3c3f41; color: #e6e6e6; border: 1px solid #555; padding: 4px; border-radius: 3px; }
+    QPushButton:disabled { background-color: #555; color: #999; }
+    QLineEdit, QTextEdit, QPlainTextEdit { background-color: #1e1e1e; color: #ffffff; selection-background-color: #3d6ea6; }
+    QComboBox { background-color: #3c3f41; color: #e6e6e6; }
+    QLabel { color: #e6e6e6; }
+    QStatusBar { background: #2b2b2b; color: #cfcfcf; }
+    QMenuBar, QMenu { background-color: #2b2b2b; color: #e6e6e6; }
+    QScrollBar:vertical { background: #2b2b2b; width:12px; }
+    """)
+    # --- End dark mode styling ---
+
     # Create and show main window
     window = HostController()
     window.show()
