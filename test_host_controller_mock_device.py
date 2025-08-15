@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
                             QTextEdit, QGroupBox, QComboBox, QMessageBox)
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QColor, QPalette
 
 class VirtualSerialPort(QThread):
     """Creates and manages a virtual serial port pair"""
@@ -118,7 +118,7 @@ class MockDevice(QMainWindow):
         port_layout.addWidget(self.port_label)
         
         self.status_label = QLabel("Status: Initializing...")
-        self.status_label.setStyleSheet("color: blue;")
+        self.status_label.setStyleSheet("color: #64b5f6;")
         port_layout.addWidget(self.status_label)
         
         # Instructions
@@ -128,7 +128,7 @@ class MockDevice(QMainWindow):
             "2. Type commands below and click Send\n"
             "3. Try 'start' and 'stop' commands"
         )
-        instructions.setStyleSheet("background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc;")
+        instructions.setStyleSheet("background-color: #3c3f41; padding: 10px; border: 1px solid #555; color: #e6e6e6;")
         port_layout.addWidget(instructions)
         
         port_group.setLayout(port_layout)
@@ -235,7 +235,7 @@ class MockDevice(QMainWindow):
     def on_port_created(self, port_name):
         """Handle virtual port creation"""
         self.port_label.setText(f"Port: {port_name}")
-        self.port_label.setStyleSheet("font-weight: bold; font-size: 12px; color: green;")
+        self.port_label.setStyleSheet("font-weight: bold; font-size: 12px; color: #81c784;")
         self.set_send_buttons_enabled(True)
         self.log_message(f"Virtual port created: {port_name}")
         self.log_message("You can now connect your Host Controller to this port")
@@ -248,10 +248,10 @@ class MockDevice(QMainWindow):
         """Handle status updates"""
         self.status_label.setText(f"Status: {status}")
         if "Error" in status or "closed" in status:
-            self.status_label.setStyleSheet("color: red;")
+            self.status_label.setStyleSheet("color: #e57373;")
             self.set_send_buttons_enabled(False)
         else:
-            self.status_label.setStyleSheet("color: green;")
+            self.status_label.setStyleSheet("color: #81c784;")
         
         self.statusBar().showMessage(status)
     
@@ -321,6 +321,38 @@ def main():
     
     # Set application style
     app.setStyle('Fusion')
+    
+    # --- Dark mode palette and stylesheet ---
+    dark_palette = QPalette()
+    dark_palette.setColor(QPalette.Window, QColor(43, 43, 43))
+    dark_palette.setColor(QPalette.WindowText, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.Base, QColor(30, 30, 30))
+    dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.ToolTipBase, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.ToolTipText, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.Text, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.ButtonText, QColor(235, 235, 235))
+    dark_palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
+    dark_palette.setColor(QPalette.Highlight, QColor(61, 174, 233))
+    dark_palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+    app.setPalette(dark_palette)
+
+    # App-level stylesheet for fine-grained control
+    app.setStyleSheet("""
+    QWidget { background-color: #2b2b2b; color: #e6e6e6; }
+    QGroupBox { border: 1px solid #444; margin-top: 6px; }
+    QGroupBox::title { subcontrol-origin: margin; left: 7px; padding: 0 3px 0 3px; color: #e6e6e6; }
+    QPushButton { background-color: #3c3f41; color: #e6e6e6; border: 1px solid #555; padding: 4px; border-radius: 3px; }
+    QPushButton:disabled { background-color: #555; color: #999; }
+    QLineEdit, QTextEdit, QPlainTextEdit { background-color: #1e1e1e; color: #ffffff; selection-background-color: #3d6ea6; }
+    QComboBox { background-color: #3c3f41; color: #e6e6e6; }
+    QLabel { color: #e6e6e6; }
+    QStatusBar { background: #2b2b2b; color: #cfcfcf; }
+    QMenuBar, QMenu { background-color: #2b2b2b; color: #e6e6e6; }
+    QScrollBar:vertical { background: #2b2b2b; width:12px; }
+    """)
+    # --- End dark mode styling ---
     
     # Create and show main window
     window = MockDevice()
