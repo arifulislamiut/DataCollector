@@ -24,8 +24,8 @@ class MotionCapture1080p:
         self.width, self.height = 1920, 1080
         self.resolution_name = "1080p"
         self.jpeg_quality = 95
-        self.motion_threshold = 5000  # 5k pixel changes for 1080p
-        self.motion_cooldown = 1.0  # 1 second minimum delay
+        self.motion_threshold = 1000  # 1k pixel changes for high sensitivity
+        self.motion_cooldown = 0.5  # 0.5 second minimum delay for faster response
         self.base_storage_path = "collection"
         
         # Camera and capture state
@@ -191,7 +191,7 @@ class MotionCapture1080p:
             return False
     
     def initialize_camera(self):
-        """Initialize camera with 1080p resolution"""
+        """Initialize camera with 1080p resolution and anti-ghosting settings"""
         try:
             # Use V4L2 backend for best performance
             self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_V4L2)
@@ -207,12 +207,21 @@ class MotionCapture1080p:
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.target_width)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.target_height)
-            self.cap.set(cv2.CAP_PROP_FPS, 25)  # Stable FPS for MX Brio
+            self.cap.set(cv2.CAP_PROP_FPS, 60)  # Higher FPS for sharper motion capture
+            
+            # Anti-ghosting camera settings
+            self.cap.set(cv2.CAP_PROP_EXPOSURE, -7)  # Fast shutter speed (reduce motion blur)
+            self.cap.set(cv2.CAP_PROP_GAIN, 50)      # Compensate for fast exposure
+            self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 50) # Balanced brightness
+            self.cap.set(cv2.CAP_PROP_CONTRAST, 60)   # Enhanced contrast for clarity
+            self.cap.set(cv2.CAP_PROP_SHARPNESS, 80)  # Maximum sharpness
             
             # Verify actual settings
             actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
+            actual_exposure = self.cap.get(cv2.CAP_PROP_EXPOSURE)
+            actual_gain = self.cap.get(cv2.CAP_PROP_GAIN)
             fourcc = int(self.cap.get(cv2.CAP_PROP_FOURCC))
             fourcc_str = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)])
             
@@ -220,10 +229,12 @@ class MotionCapture1080p:
             self.width, self.height = actual_width, actual_height
             
             # Log final settings
-            self.logger.info("✅ 1080p Camera initialized successfully:")
+            self.logger.info("✅ 1080p Camera initialized with anti-ghosting settings:")
             self.logger.info(f"  Resolution: {actual_width}x{actual_height} ({self.resolution_name})")
             self.logger.info(f"  FPS: {actual_fps}")
             self.logger.info(f"  Format: {fourcc_str}")
+            self.logger.info(f"  Exposure: {actual_exposure} (fast shutter for sharp motion)")
+            self.logger.info(f"  Gain: {actual_gain} (compensates for fast exposure)")
             self.logger.info(f"  JPEG Quality: {self.jpeg_quality}%")
             self.logger.info(f"  Motion threshold: {self.motion_threshold} pixels")
             self.logger.info(f"  Motion cooldown: {self.motion_cooldown}s")
@@ -274,9 +285,9 @@ class MotionCapture1080p:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         prev_gray = cv2.cvtColor(self.prev_frame, cv2.COLOR_BGR2GRAY)
         
-        # Calculate difference
+        # Calculate difference with higher sensitivity
         diff = cv2.absdiff(gray, prev_gray)
-        motion_pixels = cv2.countNonZero(cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)[1])
+        motion_pixels = cv2.countNonZero(cv2.threshold(diff, 15, 255, cv2.THRESH_BINARY)[1])  # Lower threshold for more sensitivity
         
         # Update previous frame
         self.prev_frame = frame.copy()
