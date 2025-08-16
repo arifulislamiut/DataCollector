@@ -71,6 +71,22 @@ class DeviceMonitor(QThread):
             other_devices = glob.glob('/dev/ttyS*')
             devices.extend(sorted(other_devices))
             
+            # Include any user-created symlinks in /dev that point to tty devices
+            # (e.g. /dev/input-device created by udev rules). This picks up symlinks
+            # whose real target is a tty device so they appear in the dropdown.
+            try:
+                for entry in os.listdir('/dev'):
+                    path = os.path.join('/dev', entry)
+                    try:
+                        if os.path.islink(path):
+                            target = os.path.realpath(path)
+                            if target.startswith('/dev/tty') or '/ttyUSB' in target or '/ttyACM' in target or target.startswith('/dev/serial'):
+                                devices.append(path)
+                    except OSError:
+                        continue
+            except OSError:
+                pass
+        
         # Windows devices
         elif os.name == 'nt':
             try:
@@ -90,7 +106,9 @@ class DeviceMonitor(QThread):
                     except:
                         pass
         
-        return devices
+        # Deduplicate and sort the final list
+        unique_devices = sorted(set(devices))
+        return unique_devices
 
 class SerialMonitor(QThread):
     """Thread to monitor serial port for commands"""
@@ -122,7 +140,7 @@ class SerialMonitor(QThread):
             # Open serial connection
             self.serial_port = serial.Serial(
                 port=device_name,
-                baudrate=9600,
+                baudrate=115200,
                 timeout=1.0,
                 bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE,
@@ -403,8 +421,13 @@ class HostController(QMainWindow):
                     # Will be set when device list is populated
                     self.last_device = last_device
                 else:
-                    self.last_device = None
-                    
+                    # If no previously saved device, prefer the stable udev symlink
+                    # so the GUI will try to select /dev/input-device by default
+                    self.last_device = '/dev/input-device'
+            else:
+                # No config file: default to the stable symlink
+                self.last_device = '/dev/input-device'
+
         except Exception as e:
             print(f"Error loading settings: {e}")
             self.last_device = None
