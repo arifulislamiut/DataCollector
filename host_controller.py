@@ -11,11 +11,12 @@ import subprocess
 import threading
 import time
 import serial
+import json
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QLabel, QComboBox, QPushButton, 
                             QTextEdit, QFileDialog, QMessageBox, QGroupBox,
                             QSplitter, QFrame)
-from PyQt5.QtCore import QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer, QStandardPaths
 from PyQt5.QtGui import QFont, QIcon, QColor, QPalette
 
 class DeviceMonitor(QThread):
@@ -236,8 +237,10 @@ class HostController(QMainWindow):
         self.script_runner = None
         self.selected_script = ""
         self.current_device = ""
+        self.config_file = self.get_config_file_path()
         
         self.init_ui()
+        self.load_settings()
         self.start_device_monitoring()
         self.setup_serial_monitoring()
         
@@ -363,6 +366,63 @@ class HostController(QMainWindow):
         # Initial device refresh
         self.refresh_devices()
     
+    def get_config_file_path(self):
+        """Get the path for the configuration file"""
+        # Use QStandardPaths to get appropriate config directory
+        config_dir = QStandardPaths.writableLocation(QStandardPaths.ConfigLocation)
+        if not config_dir:
+            # Fallback to user home directory
+            config_dir = os.path.expanduser("~")
+        
+        # Create app-specific config directory
+        app_config_dir = os.path.join(config_dir, "HostController")
+        os.makedirs(app_config_dir, exist_ok=True)
+        
+        return os.path.join(app_config_dir, "settings.json")
+    
+    def load_settings(self):
+        """Load settings from configuration file"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r') as f:
+                    settings = json.load(f)
+                
+                # Load script path
+                script_path = settings.get('selected_script', '')
+                if script_path and os.path.exists(script_path):
+                    self.selected_script = script_path
+                    script_name = os.path.basename(script_path)
+                    self.script_path_label.setText(script_name)
+                    self.script_path_label.setToolTip(script_path)
+                    self.run_btn.setEnabled(True)
+                    self.statusBar().showMessage(f"Loaded script: {script_name}")
+                
+                # Load last selected device
+                last_device = settings.get('last_device', '')
+                if last_device:
+                    # Will be set when device list is populated
+                    self.last_device = last_device
+                else:
+                    self.last_device = None
+                    
+        except Exception as e:
+            print(f"Error loading settings: {e}")
+            self.last_device = None
+    
+    def save_settings(self):
+        """Save settings to configuration file"""
+        try:
+            settings = {
+                'selected_script': self.selected_script,
+                'last_device': self.current_device
+            }
+            
+            with open(self.config_file, 'w') as f:
+                json.dump(settings, f, indent=2)
+                
+        except Exception as e:
+            print(f"Error saving settings: {e}")
+    
     def start_device_monitoring(self):
         """Start monitoring devices for changes"""
         self.device_monitor = DeviceMonitor()
@@ -414,10 +474,15 @@ class HostController(QMainWindow):
         self.device_combo.clear()
         if devices:
             self.device_combo.addItems(devices)
-            # Try to restore previous selection
-            index = self.device_combo.findText(current_selection)
-            if index >= 0:
-                self.device_combo.setCurrentIndex(index)
+            # Try to restore previous selection or last saved device
+            restore_device = current_selection or getattr(self, 'last_device', None)
+            if restore_device:
+                index = self.device_combo.findText(restore_device)
+                if index >= 0:
+                    self.device_combo.setCurrentIndex(index)
+                    # Clear the last_device after first use
+                    if hasattr(self, 'last_device'):
+                        self.last_device = None
         else:
             self.device_combo.addItem("No devices found")
         
@@ -457,6 +522,10 @@ class HostController(QMainWindow):
         file_dialog.setNameFilter("Python files (*.py);;All files (*.*)")
         file_dialog.setFileMode(QFileDialog.ExistingFile)
         
+        # Start from directory of currently selected script if available
+        if self.selected_script and os.path.exists(self.selected_script):
+            file_dialog.setDirectory(os.path.dirname(self.selected_script))
+        
         if file_dialog.exec_():
             selected_files = file_dialog.selectedFiles()
             if selected_files:
@@ -466,6 +535,9 @@ class HostController(QMainWindow):
                 self.script_path_label.setToolTip(self.selected_script)  # Show full path on hover
                 self.run_btn.setEnabled(True)
                 self.statusBar().showMessage(f"Script selected: {script_name}")
+                
+                # Save settings immediately when script is selected
+                self.save_settings()
     
     def run_script(self):
         """Run the selected Python script"""
@@ -534,6 +606,9 @@ class HostController(QMainWindow):
     
     def closeEvent(self, event):
         """Handle application close"""
+        # Save settings before closing
+        self.save_settings()
+        
         # Stop monitoring thread
         if self.device_monitor:
             self.device_monitor.stop()
