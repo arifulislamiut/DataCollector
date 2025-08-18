@@ -32,20 +32,12 @@ class ButtonController:
         self.load_config()
         
     def find_device(self):
-        """Find the input device, prefer stable symlink"""
-        # Priority order: stable symlink, then USB devices
-        candidates = [
-            '/dev/input-device',  # Stable udev symlink (preferred)
-            *glob.glob('/dev/ttyUSB*'),
-            *glob.glob('/dev/ttyACM*'),
-            *glob.glob('/dev/pts/[1-9]*')  # Skip pts/0 (console)
-        ]
+        """Find the input device, only use stable symlink"""
+        # Only use the stable udev symlink - no fallbacks to USB devices
+        if os.path.exists('/dev/input-device'):
+            return '/dev/input-device'
         
-        for device in candidates:
-            if os.path.exists(device):
-                return device
-        
-        # Return None instead of raising exception - allow software-only mode
+        # Return None if stable device not found - will use keyboard input mode
         return None
     
     def get_venv_python(self):
