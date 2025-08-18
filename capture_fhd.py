@@ -456,15 +456,15 @@ class MotionCapture1080p:
 
 def main():
     """Main function - no user input required"""
-    print("🎥 1080p Motion Capture with Video Recording")
+    print("[VIDEO] 1080p Motion Capture with Video Recording")
     print("==========================================")
     print("Configuration:")
-    print("  • Resolution: 1080p (1920x1080)")
-    print("  • Mode: Motion detection")
-    print("  • Threshold: 5,000 pixel changes")
-    print("  • Cooldown: 1 second between captures")
-    print("  • Video: Complete session recording")
-    print("  • Storage: collection/yyyy-mm-dd-hh-mm/")
+    print("  - Resolution: 1080p (1920x1080)")
+    print("  - Mode: Motion detection")
+    print("  - Threshold: 5,000 pixel changes")
+    print("  - Cooldown: 1 second between captures")
+    print("  - Video: Complete session recording")
+    print("  - Storage: collection/yyyy-mm-dd-hh-mm/")
     print()
     
     # Create and run capture
