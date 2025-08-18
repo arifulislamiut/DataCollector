@@ -24,6 +24,8 @@ class ButtonController:
         self.serial_port = None
         self.monitoring = False
         self.config_file = config_file
+        self.hardware_mode = self.device is not None
+        self.venv_python = self.get_venv_python()
         
         self.setup_logging()
         self.setup_signal_handlers()
@@ -43,7 +45,23 @@ class ButtonController:
             if os.path.exists(device):
                 return device
         
-        raise RuntimeError("No serial device found. Connect ESP32/NodeMCU or run setup_hardware.sh")
+        # Return None instead of raising exception - allow software-only mode
+        return None
+    
+    def get_venv_python(self):
+        """Get the path to the virtual environment's Python interpreter"""
+        # Check for Windows venv structure
+        venv_python_win = os.path.join(os.getcwd(), 'venv', 'Scripts', 'python.exe')
+        if os.path.exists(venv_python_win):
+            return venv_python_win
+        
+        # Check for Unix/Linux venv structure
+        venv_python_unix = os.path.join(os.getcwd(), 'venv', 'bin', 'python')
+        if os.path.exists(venv_python_unix):
+            return venv_python_unix
+        
+        # Fallback to system python
+        return sys.executable
     
     def setup_logging(self):
         """Configure logging for industrial monitoring"""
@@ -58,7 +76,12 @@ class ButtonController:
         self.logger = logging.getLogger(__name__)
         self.logger.info("="*50)
         self.logger.info("Button Controller Starting")
-        self.logger.info(f"Device: {self.device}")
+        if self.hardware_mode:
+            self.logger.info(f"Device: {self.device}")
+        else:
+            self.logger.warning("WARNING: No serial device found. Running in software-only mode.")
+            self.logger.warning("Connect ESP32/NodeMCU or run setup_hardware.sh for hardware button support.")
+        self.logger.info(f"Python interpreter: {self.venv_python}")
         self.logger.info("="*50)
     
     def setup_signal_handlers(self):
@@ -72,8 +95,8 @@ class ButtonController:
             "device": self.device,
             "baudrate": 115200,
             "commands": {
-                "start": ["python3", "camera_capture_storage.py"],
-                "stop": ["pkill", "-f", "camera_capture"],
+                "start": [self.venv_python, "capture_fhd.py"],
+                "stop": ["pkill", "-f", "capture_fhd"],
                 "func1": ["./sync_cron.sh"],
                 "func2": ["./check_cron_sync.sh"],
                 "up": ["brightness", "+10"],
@@ -82,7 +105,7 @@ class ButtonController:
                 "right": ["echo", "RIGHT button pressed"]
             },
             "scripts": {
-                "capture": "camera_capture_storage.py",
+                "capture": "capture_fhd.py",
                 "sync": "./sync_cron.sh"
             }
         }
@@ -110,6 +133,12 @@ class ButtonController:
     
     def monitor_buttons(self):
         """Main button monitoring loop"""
+        if not self.hardware_mode:
+            self.logger.info("Software-only mode: Hardware button monitoring disabled")
+            self.logger.info("Available commands can be triggered via keyboard input or API")
+            self.software_mode_loop()
+            return
+            
         retry_count = 0
         max_retries = 5
         
@@ -166,6 +195,24 @@ class ButtonController:
         
         self.logger.info("Serial monitoring stopped")
     
+    def software_mode_loop(self):
+        """Software-only mode - accept keyboard input for testing"""
+        self.logger.info("Enter commands manually (or press Ctrl+C to exit):")
+        self.logger.info(f"Available commands: {list(self.config['commands'].keys())}")
+        
+        try:
+            while True:
+                try:
+                    command = input("Command: ").strip().lower()
+                    if command:
+                        if command in ['quit', 'exit', 'q']:
+                            break
+                        self.handle_command(command)
+                except EOFError:
+                    break
+        except KeyboardInterrupt:
+            self.logger.info("Software mode interrupted by user")
+    
     def handle_command(self, command):
         """Handle button commands with process tracking"""
         self.logger.info(f"Button pressed: {command.upper()}")
@@ -196,10 +243,10 @@ class ButtonController:
                 del self.running_processes['capture']
         
         try:
-            # Start camera capture
-            capture_script = self.config['scripts'].get('capture', 'camera_capture_storage.py')
+            # Start camera capture using venv python
+            capture_script = self.config['scripts'].get('capture', 'capture_fhd.py')
             process = subprocess.Popen(
-                ['python3', capture_script],
+                [self.venv_python, capture_script],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=os.getcwd()
@@ -240,20 +287,20 @@ class ButtonController:
             except Exception as e:
                 self.logger.error(f"Error stopping tracked process: {e}")
         
-        # Fallback: kill any camera_capture processes
+        # Fallback: kill any capture_fhd processes
         if not stopped:
             try:
                 result = subprocess.run(
-                    ['pkill', '-f', 'camera_capture'],
+                    ['pkill', '-f', 'capture_fhd'],
                     capture_output=True,
                     text=True
                 )
                 if result.returncode == 0:
-                    self.logger.info("Killed camera capture processes via pkill")
+                    self.logger.info("Killed capture_fhd processes via pkill")
                 else:
-                    self.logger.info("No camera capture processes found to kill")
+                    self.logger.info("No capture_fhd processes found to kill")
             except Exception as e:
-                self.logger.error(f"Failed to pkill camera processes: {e}")
+                self.logger.error(f"Failed to pkill capture processes: {e}")
     
     def execute_command(self, command_name, cmd_list):
         """Execute a command from config"""
@@ -262,6 +309,9 @@ class ButtonController:
             if cmd_list[0].endswith('.sh'):
                 # Make shell script executable
                 os.chmod(cmd_list[0], 0o755)
+            elif cmd_list[0] in ['python', 'python3'] and len(cmd_list) > 1:
+                # Replace python/python3 with venv python for Python scripts
+                cmd_list = [self.venv_python] + cmd_list[1:]
             
             process = subprocess.Popen(
                 cmd_list,
