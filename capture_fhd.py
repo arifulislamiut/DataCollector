@@ -179,7 +179,7 @@ class MotionCapture1080p:
                 'saturation': 100,              # Reduced saturation for motion clarity
                 'focus_automatic_continuous': 0, # Manual focus
                 'white_balance_automatic': 0,    # Manual white balance
-                'power_line_frequency': 1,       # 50Hz (avoid flicker)
+                'power_line_frequency': 2,       # 60Hz (avoid flicker)
                 'backlight_compensation': 0      # Disable backlight compensation
             }
             
