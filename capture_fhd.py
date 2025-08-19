@@ -378,11 +378,13 @@ class MotionCapture1080p:
                 if self.video_writer:
                     self.video_writer.write(frame)
                 
-                # Check for motion detection with cooldown
-                if current_time - self.last_motion_save >= self.motion_cooldown:
-                    if self.detect_motion(frame):
-                        self.save_frame(frame)
-                        self.last_motion_save = current_time
+                # Always check for motion to maintain algorithm state
+                motion_detected = self.detect_motion(frame)
+                
+                # Only save if motion detected and cooldown period has passed
+                if motion_detected and (current_time - self.last_motion_save >= self.motion_cooldown):
+                    self.save_frame(frame)
+                    self.last_motion_save = current_time
                 
                 # Display preview if screen detected
                 if self.show_preview:
@@ -461,8 +463,8 @@ def main():
     print("Configuration:")
     print("  • Resolution: 1080p (1920x1080)")
     print("  • Mode: Motion detection")
-    print("  • Threshold: 5,000 pixel changes")
-    print("  • Cooldown: 1 second between captures")
+    print("  • Threshold: 1,000 pixel changes")
+    print("  • Cooldown: 0.5 second between captures")
     print("  • Video: Complete session recording")
     print("  • Storage: collection/yyyy-mm-dd-hh-mm/")
     print()
