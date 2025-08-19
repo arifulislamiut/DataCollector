@@ -179,7 +179,8 @@ class MotionCapture1080p:
                 'saturation': 100,              # Reduced saturation for motion clarity
                 'focus_automatic_continuous': 0, # Manual focus
                 'focus_absolute': 40,            # Medium focus distance
-                'white_balance_automatic': 0,    # Manual white balance
+                'white_balance_automatic': 1,    # Manual white balance
+                'white_balance_temperature': 4500, # Neutral white balance (daylight balanced)
                 'power_line_frequency': 2,       # 60Hz (avoid flicker)
                 'backlight_compensation': 0      # Disable backlight compensation
             }
