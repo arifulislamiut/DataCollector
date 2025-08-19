@@ -38,8 +38,9 @@ FILE_COUNT=$(find "$COLLECTION_DIR" -type f -newer "$LOCK_FILE" 2>/dev/null | wc
 
 log "Starting sync (checking $FILE_COUNT potential files)"
 
-# Perform bidirectional sync with deletion support
-rclone sync "$COLLECTION_DIR" gdrive:DataCollector/collection \
+# Perform incremental sync with optimized settings (ORIGINAL VERSION)
+rclone copy "$COLLECTION_DIR" gdrive:DataCollector/collection \
+    --update \
     --fast-list \
     --transfers 3 \
     --checkers 6 \
@@ -48,7 +49,6 @@ rclone sync "$COLLECTION_DIR" gdrive:DataCollector/collection \
     --retries 2 \
     --low-level-retries 3 \
     --max-age 7d \
-    --delete-during \
     --log-level ERROR \
     --stats 0 \
     2>>"$LOG_FILE"
