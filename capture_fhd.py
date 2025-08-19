@@ -200,8 +200,10 @@ class MotionCapture1080p:
                 self.logger.error(f"Failed to open camera {self.camera_index}")
                 return False
             
-            # Set minimal buffer for low latency
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            # Jetson Nano optimizations
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimal buffer for low latency
+            self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)   # Disable autofocus for consistent capture
+            self.cap.set(cv2.CAP_PROP_AUTO_WB, 0)     # Disable auto white balance for speed
             
             # Set 1080p resolution
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
@@ -209,12 +211,13 @@ class MotionCapture1080p:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.target_height)
             self.cap.set(cv2.CAP_PROP_FPS, 60)  # Higher FPS for sharper motion capture
             
-            # Anti-ghosting camera settings
-            self.cap.set(cv2.CAP_PROP_EXPOSURE, -7)  # Fast shutter speed (reduce motion blur)
-            self.cap.set(cv2.CAP_PROP_GAIN, 50)      # Compensate for fast exposure
-            self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 50) # Balanced brightness
-            self.cap.set(cv2.CAP_PROP_CONTRAST, 60)   # Enhanced contrast for clarity
-            self.cap.set(cv2.CAP_PROP_SHARPNESS, 80)  # Maximum sharpness
+            # High-speed fabric capture settings (Jetson Nano + MX Brio optimized)
+            self.cap.set(cv2.CAP_PROP_EXPOSURE, -9)  # Very fast shutter (1/500s+) for moving fabric
+            self.cap.set(cv2.CAP_PROP_GAIN, 80)      # Higher gain to compensate for fast exposure
+            self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 60) # Increased brightness for fast shutter
+            self.cap.set(cv2.CAP_PROP_CONTRAST, 70)   # Enhanced contrast for fabric detail
+            self.cap.set(cv2.CAP_PROP_SHARPNESS, 100) # Maximum sharpness for fabric texture
+            self.cap.set(cv2.CAP_PROP_SATURATION, 40) # Reduced saturation for industrial capture
             
             # Verify actual settings
             actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -229,7 +232,7 @@ class MotionCapture1080p:
             self.width, self.height = actual_width, actual_height
             
             # Log final settings
-            self.logger.info("✅ 1080p Camera initialized with anti-ghosting settings:")
+            self.logger.info("✅ 1080p Camera initialized for high-speed fabric capture:")
             self.logger.info(f"  Resolution: {actual_width}x{actual_height} ({self.resolution_name})")
             self.logger.info(f"  FPS: {actual_fps}")
             self.logger.info(f"  Format: {fourcc_str}")
