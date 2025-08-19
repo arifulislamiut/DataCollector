@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# Host Controller Desktop Startup Script
-# Runs when user logs into desktop environment
+# Host Controller Desktop Startup Script - Terminal Mode
+# Opens a terminal window and runs the application in it
 
 # Logging function
 log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$HOME/host_controller_startup.log"
 }
 
-log_message "Host Controller desktop startup initiated"
+log_message "Host Controller desktop startup initiated (Terminal Mode)"
 
 # Wait a bit for desktop to fully load
-sleep 5
+sleep 10
 
 # Change to script directory
 cd "/home/groot/krnltech/DataCollector"
@@ -31,41 +31,77 @@ if pgrep -f "host_controller.py" > /dev/null; then
     exit 0
 fi
 
-# Start Host Controller
-log_message "Starting Host Controller with $PYTHON_CMD"
-"$PYTHON_CMD" "/home/groot/krnltech/DataCollector/host_controller.py" >> "$HOME/host_controller.log" 2>&1 &
-PID=$!
+# Detect available terminal emulator
+TERMINAL=""
+if command -v gnome-terminal >/dev/null 2>&1; then
+    TERMINAL="gnome-terminal"
+elif command -v konsole >/dev/null 2>&1; then
+    TERMINAL="konsole"
+elif command -v xfce4-terminal >/dev/null 2>&1; then
+    TERMINAL="xfce4-terminal"
+elif command -v xterm >/dev/null 2>&1; then
+    TERMINAL="xterm"
+else
+    log_message "ERROR: No terminal emulator found"
+    exit 1
+fi
 
-# Save PID for monitoring
-echo $PID > "$HOME/host_controller.pid"
-log_message "Host Controller started with PID: $PID"
+log_message "Using terminal: $TERMINAL"
 
-# Create a simple watchdog script
-cat > "$HOME/host_controller_watchdog.sh" << 'WATCHDOG_EOF'
+# Create a script to run inside the terminal
+TERMINAL_SCRIPT="/tmp/host_controller_terminal.sh"
+cat > "$TERMINAL_SCRIPT" << 'TERMINAL_EOF'
 #!/bin/bash
-while true; do
-    if [ -f "$HOME/host_controller.pid" ]; then
-        PID=$(cat "$HOME/host_controller.pid")
-        if ! kill -0 "$PID" 2>/dev/null; then
-            echo "$(date '+%Y-%m-%d %H:%M:%S'): Host Controller died, restarting..." >> "$HOME/host_controller_startup.log"
-            cd "/home/groot/krnltech/DataCollector"
-            if [ -n "/home/groot/krnltech/DataCollector/venv" ] && [ -f "/home/groot/krnltech/DataCollector/venv/bin/activate" ]; then
-                source "/home/groot/krnltech/DataCollector/venv/bin/activate"
-                PYTHON_CMD="/home/groot/krnltech/DataCollector/venv/bin/python"
-            else
-                PYTHON_CMD="python3"
-            fi
-            "$PYTHON_CMD" "/home/groot/krnltech/DataCollector/host_controller.py" >> "$HOME/host_controller.log" 2>&1 &
-            echo $! > "$HOME/host_controller.pid"
-        fi
-    fi
-    sleep 30
-done
-WATCHDOG_EOF
 
-chmod +x "$HOME/host_controller_watchdog.sh"
+echo "======================================"
+echo "    Host Controller Terminal Mode     "
+echo "======================================"
+echo "Starting Host Controller..."
+echo "Press Ctrl+C to stop"
+echo "======================================"
 
-# Start watchdog in background
-nohup "$HOME/host_controller_watchdog.sh" >/dev/null 2>&1 &
+# Change to script directory
+cd "/home/groot/krnltech/DataCollector"
 
-log_message "Host Controller startup complete with watchdog"
+# Activate virtual environment if available
+if [ -d "venv" ] && [ -f "venv/bin/activate" ]; then
+    echo "Activating virtual environment..."
+    source "venv/bin/activate"
+    PYTHON_CMD="venv/bin/python"
+else
+    echo "Using system Python..."
+    PYTHON_CMD="python3"
+fi
+
+# Clean up any leftover files
+rm -f "$HOME/host_controller.pid" "$HOME/host_controller_watchdog.sh"
+
+echo "Starting application..."
+echo "------------------------"
+
+# Run Host Controller in foreground (visible in terminal)
+"$PYTHON_CMD" "host_controller.py"
+
+echo "Host Controller stopped."
+read -p "Press Enter to close terminal..."
+TERMINAL_EOF
+
+chmod +x "$TERMINAL_SCRIPT"
+
+# Launch terminal with the script based on terminal type
+case "$TERMINAL" in
+    "gnome-terminal")
+        gnome-terminal --title="Host Controller" --geometry=120x30 -- bash -c "$TERMINAL_SCRIPT"
+        ;;
+    "konsole")
+        konsole --title "Host Controller" -e bash -c "$TERMINAL_SCRIPT"
+        ;;
+    "xfce4-terminal")
+        xfce4-terminal --title="Host Controller" --geometry=120x30 -e "bash -c '$TERMINAL_SCRIPT'"
+        ;;
+    "xterm")
+        xterm -title "Host Controller" -geometry 120x30 -e bash -c "$TERMINAL_SCRIPT"
+        ;;
+esac
+
+log_message "Terminal launched with Host Controller"
