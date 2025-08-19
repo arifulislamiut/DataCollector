@@ -211,13 +211,13 @@ class MotionCapture1080p:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.target_height)
             self.cap.set(cv2.CAP_PROP_FPS, 60)  # Higher FPS for sharper motion capture
             
-            # High-speed fabric capture settings (Jetson Nano + MX Brio optimized)
-            self.cap.set(cv2.CAP_PROP_EXPOSURE, -9)  # Very fast shutter (1/500s+) for moving fabric
-            self.cap.set(cv2.CAP_PROP_GAIN, 80)      # Higher gain to compensate for fast exposure
-            self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 60) # Increased brightness for fast shutter
-            self.cap.set(cv2.CAP_PROP_CONTRAST, 70)   # Enhanced contrast for fabric detail
+            # Ultra-fast fabric capture settings (horizontal motion blur elimination)
+            self.cap.set(cv2.CAP_PROP_EXPOSURE, -11) # Ultra fast shutter (1/1000s+) for horizontal motion
+            self.cap.set(cv2.CAP_PROP_GAIN, 100)     # Maximum gain to compensate for ultra-fast exposure
+            self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 70) # High brightness for very fast shutter
+            self.cap.set(cv2.CAP_PROP_CONTRAST, 80)   # Maximum contrast for fabric pattern clarity
             self.cap.set(cv2.CAP_PROP_SHARPNESS, 100) # Maximum sharpness for fabric texture
-            self.cap.set(cv2.CAP_PROP_SATURATION, 40) # Reduced saturation for industrial capture
+            self.cap.set(cv2.CAP_PROP_SATURATION, 30) # Lower saturation for motion clarity
             
             # Verify actual settings
             actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -232,7 +232,7 @@ class MotionCapture1080p:
             self.width, self.height = actual_width, actual_height
             
             # Log final settings
-            self.logger.info("✅ 1080p Camera initialized for high-speed fabric capture:")
+            self.logger.info("✅ 1080p Camera initialized for ultra-fast fabric capture (horizontal motion):")
             self.logger.info(f"  Resolution: {actual_width}x{actual_height} ({self.resolution_name})")
             self.logger.info(f"  FPS: {actual_fps}")
             self.logger.info(f"  Format: {fourcc_str}")
