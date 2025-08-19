@@ -173,7 +173,7 @@ class MotionCapture1080p:
                 'auto_exposure': 1,              # Manual exposure mode
                 'exposure_time_absolute': 5,    # Balanced shutter (faster than default, brighter than 5)
                 'gain': 255,                     # Maximum gain for fast shutter
-                'brightness': 220,               # High brightness compensation
+                'brightness': 210,               # High brightness compensation
                 'contrast': 200,                 # Maximum contrast for fabric patterns
                 'sharpness': 255,               # Maximum sharpness for texture detail
                 'saturation': 100,              # Reduced saturation for motion clarity
