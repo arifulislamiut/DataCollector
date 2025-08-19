@@ -317,24 +317,18 @@ class MotionCapture1080p:
                 self.logger.error(f"Failed to open camera {self.camera_index}")
                 return False
             
-            # Jetson Nano optimizations
+            # Jetson Nano optimizations (only non-conflicting settings)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimal buffer for low latency
-            self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)   # Disable autofocus for consistent capture
-            self.cap.set(cv2.CAP_PROP_AUTO_WB, 0)     # Disable auto white balance for speed
             
-            # Set 1080p resolution
+            # Set 1080p resolution and format
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.target_width)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.target_height)
             self.cap.set(cv2.CAP_PROP_FPS, 60)  # Higher FPS for sharper motion capture
             
-            # Ultra-fast fabric capture settings (horizontal motion blur elimination)
-            self.cap.set(cv2.CAP_PROP_EXPOSURE, -11) # Ultra fast shutter (1/1000s+) for horizontal motion
-            self.cap.set(cv2.CAP_PROP_GAIN, 100)     # Maximum gain to compensate for ultra-fast exposure
-            self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 70) # High brightness for very fast shutter
-            self.cap.set(cv2.CAP_PROP_CONTRAST, 80)   # Maximum contrast for fabric pattern clarity
-            self.cap.set(cv2.CAP_PROP_SHARPNESS, 100) # Maximum sharpness for fabric texture
-            self.cap.set(cv2.CAP_PROP_SATURATION, 30) # Lower saturation for motion clarity
+            # NOTE: Image quality settings (exposure, gain, brightness, etc.) are controlled via v4l2-ctl
+            # OpenCV settings would override the precise v4l2 configuration
+            self.logger.info("📋 Using v4l2-ctl settings for image quality (not OpenCV overrides)")
             
             # Verify actual settings
             actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
