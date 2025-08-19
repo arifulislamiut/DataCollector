@@ -162,6 +162,54 @@ class MotionCapture1080p:
             self.logger.warning(f"Screen detection failed: {e}")
             self.logger.info("Preview disabled")
     
+    def log_all_camera_settings(self):
+        """Log all camera settings for verification"""
+        try:
+            self.logger.info("📋 CURRENT CAMERA SETTINGS:")
+            
+            # Core settings
+            width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = self.cap.get(cv2.CAP_PROP_FPS)
+            fourcc = int(self.cap.get(cv2.CAP_PROP_FOURCC))
+            fourcc_str = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)])
+            
+            # Image quality settings
+            exposure = self.cap.get(cv2.CAP_PROP_EXPOSURE)
+            gain = self.cap.get(cv2.CAP_PROP_GAIN)
+            brightness = self.cap.get(cv2.CAP_PROP_BRIGHTNESS)
+            contrast = self.cap.get(cv2.CAP_PROP_CONTRAST)
+            sharpness = self.cap.get(cv2.CAP_PROP_SHARPNESS)
+            saturation = self.cap.get(cv2.CAP_PROP_SATURATION)
+            
+            # Control settings
+            autofocus = self.cap.get(cv2.CAP_PROP_AUTOFOCUS)
+            auto_wb = self.cap.get(cv2.CAP_PROP_AUTO_WB)
+            buffer_size = self.cap.get(cv2.CAP_PROP_BUFFERSIZE)
+            
+            self.logger.info(f"  Resolution: {width}x{height}")
+            self.logger.info(f"  FPS: {fps}")
+            self.logger.info(f"  Format: {fourcc_str}")
+            self.logger.info(f"  Buffer Size: {buffer_size}")
+            self.logger.info("  --- MOTION BLUR SETTINGS ---")
+            self.logger.info(f"  Exposure: {exposure} (lower = faster shutter)")
+            self.logger.info(f"  Gain: {gain}")
+            self.logger.info(f"  Brightness: {brightness}")
+            self.logger.info(f"  Contrast: {contrast}")
+            self.logger.info(f"  Sharpness: {sharpness}")
+            self.logger.info(f"  Saturation: {saturation}")
+            self.logger.info("  --- CONTROL SETTINGS ---")
+            self.logger.info(f"  Autofocus: {autofocus} (0=manual, 1=auto)")
+            self.logger.info(f"  Auto White Balance: {auto_wb} (0=manual, 1=auto)")
+            
+            # Calculate approximate shutter speed from exposure
+            if exposure != -1:  # -1 means auto
+                approx_shutter = 1.0 / (2 ** abs(exposure))
+                self.logger.info(f"  Estimated shutter speed: ~1/{int(1/approx_shutter)}s")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to read camera settings: {e}")
+    
     def get_image_filename(self):
         """Generate timestamped filename for image"""
         timestamp = datetime.now().strftime("%H-%M-%S-%f")[:-3]  # Include milliseconds
@@ -242,6 +290,9 @@ class MotionCapture1080p:
             self.logger.info(f"  Motion threshold: {self.motion_threshold} pixels")
             self.logger.info(f"  Motion cooldown: {self.motion_cooldown}s")
             self.logger.info(f"  Session folder: {self.session_folder}")
+            
+            # Display all current camera settings for verification
+            self.log_all_camera_settings()
             
             return True
             
