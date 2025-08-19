@@ -162,6 +162,71 @@ class MotionCapture1080p:
             self.logger.warning(f"Screen detection failed: {e}")
             self.logger.info("Preview disabled")
     
+    def configure_v4l2_settings(self):
+        """Configure camera using v4l2-ctl for precise control"""
+        try:
+            device = f"/dev/video{self.camera_index}"
+            self.logger.info(f"🔧 Configuring MX Brio via v4l2-ctl on {device}")
+            
+            # Dictionary of v4l2 settings for ultra-fast fabric capture
+            v4l2_settings = {
+                'auto_exposure': 1,              # Manual exposure mode
+                'exposure_time_absolute': 5,     # Ultra-fast shutter (5 units = ~1/1000s)
+                'gain': 255,                     # Maximum gain for fast shutter
+                'brightness': 180,               # High brightness compensation
+                'contrast': 200,                 # Maximum contrast for fabric patterns
+                'sharpness': 255,               # Maximum sharpness for texture detail
+                'saturation': 100,              # Reduced saturation for motion clarity
+                'focus_automatic_continuous': 0, # Manual focus
+                'white_balance_automatic': 0,    # Manual white balance
+                'power_line_frequency': 1,       # 50Hz (avoid flicker)
+                'backlight_compensation': 0      # Disable backlight compensation
+            }
+            
+            # Apply each setting
+            for setting, value in v4l2_settings.items():
+                try:
+                    cmd = ['v4l2-ctl', '-d', device, '--set-ctrl', f'{setting}={value}']
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                    
+                    if result.returncode == 0:
+                        self.logger.info(f"  ✅ {setting}: {value}")
+                    else:
+                        self.logger.warning(f"  ⚠️  {setting}: {value} - {result.stderr.strip()}")
+                        
+                except subprocess.TimeoutExpired:
+                    self.logger.error(f"  ❌ {setting}: timeout")
+                except FileNotFoundError:
+                    self.logger.error("v4l2-ctl not found - install with: sudo apt install v4l-utils")
+                    return False
+                except Exception as e:
+                    self.logger.error(f"  ❌ {setting}: {e}")
+            
+            # Verify critical settings were applied
+            self.verify_v4l2_settings(device)
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"V4L2 configuration failed: {e}")
+            return False
+    
+    def verify_v4l2_settings(self, device):
+        """Verify critical v4l2 settings were applied"""
+        try:
+            critical_settings = ['auto_exposure', 'exposure_time_absolute', 'gain']
+            
+            cmd = ['v4l2-ctl', '-d', device, '--get-ctrl'] + [','.join(critical_settings)]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            
+            if result.returncode == 0:
+                self.logger.info("🔍 V4L2 Settings Verification:")
+                for line in result.stdout.strip().split('\n'):
+                    if ':' in line:
+                        self.logger.info(f"  {line.strip()}")
+            
+        except Exception as e:
+            self.logger.warning(f"V4L2 verification failed: {e}")
+
     def log_all_camera_settings(self):
         """Log all camera settings for verification"""
         try:
@@ -241,6 +306,10 @@ class MotionCapture1080p:
     def initialize_camera(self):
         """Initialize camera with 1080p resolution and anti-ghosting settings"""
         try:
+            # Configure camera using v4l2-ctl first for precise control
+            if not self.configure_v4l2_settings():
+                self.logger.warning("V4L2 configuration failed, using OpenCV settings only")
+            
             # Use V4L2 backend for best performance
             self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_V4L2)
             
