@@ -25,7 +25,7 @@ class MotionCapture1080p:
         self.resolution_name = "1080p"
         self.jpeg_quality = 95
         self.motion_threshold = 1000  # 1k pixel changes for high sensitivity
-        self.motion_cooldown = 0.5  # 0.5 second minimum delay for faster response
+        self.motion_cooldown = 1.0  # 1 second minimum delay for faster response
         self.base_storage_path = "collection"
         
         # Camera and capture state
@@ -464,7 +464,7 @@ def main():
     print("  • Resolution: 1080p (1920x1080)")
     print("  • Mode: Motion detection")
     print("  • Threshold: 1,000 pixel changes")
-    print("  • Cooldown: 0.5 second between captures")
+    print("  • Cooldown: 1 second between captures")
     print("  • Video: Complete session recording")
     print("  • Storage: collection/yyyy-mm-dd-hh-mm/")
     print()
