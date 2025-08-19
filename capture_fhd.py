@@ -168,12 +168,12 @@ class MotionCapture1080p:
             device = f"/dev/video{self.camera_index}"
             self.logger.info(f"🔧 Configuring MX Brio via v4l2-ctl on {device}")
             
-            # Dictionary of v4l2 settings for ultra-fast fabric capture
+            # Dictionary of v4l2 settings for balanced fabric capture (motion blur vs brightness)
             v4l2_settings = {
                 'auto_exposure': 1,              # Manual exposure mode
-                'exposure_time_absolute': 5,     # Ultra-fast shutter (5 units = ~1/1000s)
+                'exposure_time_absolute': 5,    # Balanced shutter (faster than default, brighter than 5)
                 'gain': 255,                     # Maximum gain for fast shutter
-                'brightness': 180,               # High brightness compensation
+                'brightness': 220,               # High brightness compensation
                 'contrast': 200,                 # Maximum contrast for fabric patterns
                 'sharpness': 255,               # Maximum sharpness for texture detail
                 'saturation': 100,              # Reduced saturation for motion clarity
